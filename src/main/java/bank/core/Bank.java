@@ -243,7 +243,6 @@ public class Bank {
                 generateTransactionId(),
                 Transaction.TransactionType.TRANSFER,
                 amount,
-
                 LocalDateTime.now(),
                 Transaction.TransactionStatus.SUCCESS,
                 null,
