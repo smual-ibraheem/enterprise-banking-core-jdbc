@@ -3,7 +3,7 @@ package bank.policy;
 import bank.core.Account;
 import bank.core.Transaction;
 import bank.state.AccountState;
-import bank.ledger.TransactionLog;
+import bank.dao.TransactionDao;
 
 /**
  * TransactionPolicy (سياسة العمليات)
@@ -16,12 +16,12 @@ public class TransactionPolicy {
     // إعدادات (Config) تُمرَّر من الخارج (مثلاً من Bank) بدل hard-code
     private final long maxTransactionAmount;
     private final long dailyLimit;
-    private final TransactionLog transactionLog;
+    private final TransactionDao transactionDao;
 
-    public TransactionPolicy(long maxTransactionAmount, long dailyLimit, TransactionLog transactionLog) {
+    public TransactionPolicy(long maxTransactionAmount, long dailyLimit, TransactionDao transactionDao) {
         this.maxTransactionAmount = maxTransactionAmount;
         this.dailyLimit = dailyLimit;
-        this.transactionLog = transactionLog;
+        this.transactionDao = transactionDao;
     }
 
     /**
@@ -114,7 +114,7 @@ public class TransactionPolicy {
      */
     public PolicyResult checkDailyLimit(String accountId, long amount) {
         long todayTotal =
-                transactionLog.getDailyTotalForAccount(accountId, java.time.LocalDate.now());
+                transactionDao.getDailyTotalForAccount(accountId, java.time.LocalDate.now());
         //if(todayTotal > dailyLimit - amount)-->لمسة احترافية صامتة يمنع overflow لو ارقامك كبيرة
         if (todayTotal > dailyLimit - amount) {
             return PolicyResult.reject(Transaction.RejectionReason.DAILY_LIMIT_EXCEEDED);

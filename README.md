@@ -1,55 +1,61 @@
-# Bank Account System
+# Enterprise Banking Core (JDBC)
 
-A console-based banking system built with Java and Maven, focusing on clean architecture, business rules, transaction validation, and audit-friendly transaction logging.
+![Java](https://img.shields.io/badge/Java-17-blue.svg)
+![MySQL](https://img.shields.io/badge/MySQL-8.0-orange.svg)
+![Maven](https://img.shields.io/badge/Maven-3.3-C71A36.svg)
+![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-## Overview
+## 📌 Overview
+**Enterprise Banking Core** is a robust, terminal-based backend engine built from scratch using Java and Raw JDBC. This project is intentionally developed without modern ORMs (like Hibernate) to demonstrate a deep, foundational understanding of Database Infrastructure, Transaction Management, and Data Integrity.
 
-This project simulates a simple banking system where users can create accounts, deposit money, withdraw money, transfer funds, and view recent transactions.
+It simulates a real-world financial core where partial executions are fatal, enforcing strict architectural rules to guarantee that no funds are lost during catastrophic failures.
 
-The main goal of the project is not only to build a working console application, but also to demonstrate clean separation of responsibilities between the user interface, business logic, validation policies, and transaction logging.
+## 🏗️ Architectural Highlights & Concepts Mastered
 
-## Features
+- **ACID Transactions (Manual Control):** Implemented the `Connection Passing Pattern` to bind multiple DAO operations (deduct, add, log) into a single atomic session. Utilizing `conn.setAutoCommit(false)`, `commit()`, and `rollback()` to prevent the "Partial Execution Trap."
+- **Optimistic Locking:** Engineered concurrency control using a `version` column to prevent Lost Updates when multiple threads attempt to modify the same bank account simultaneously.
+- **Separation of Concerns (SoC):** Strictly segregated business logic (`Bank` Service) from database access (`DAO` Pattern), ensuring high maintainability and testability.
+- **Smart Configuration Hierarchy:** Developed a fail-safe environment variable injection system (`getEnvOrDefault`). The system securely reads from CI/CD pipelines (GitHub Actions) while seamlessly falling back to local credentials for frictionless developer onboarding.
+- **Defensive Programming:** Extensive use of Guard Clauses to filter out illegal operations (e.g., zero/negative amounts, phantom accounts) before they ever reach the database layer.
 
-- Create bank accounts with unique generated IDs
-- Deposit money into accounts
-- Withdraw money from accounts
-- Transfer money between accounts
-- Reject invalid transactions with clear rejection reasons
-- Prevent negative or invalid amounts
-- Prevent accounts from being created with invalid data
-- Enforce maximum transaction amount
-- Enforce daily outgoing transaction limit
-- Keep a transaction log for successful and rejected operations
-- Show recent transactions for each account
-- Unit-tested business rules with JUnit 5
+## ⚙️ Tech Stack
+* **Language:** Java 17
+* **Database:** MySQL 8.0
+* **Build Tool:** Apache Maven
+* **Testing:** JUnit 5 (Automated Integration Testing)
+* **CI/CD:** GitHub Actions
 
-## Tech Stack
+## 🧪 Testing Strategy (TDD Approach)
+The `src/test` directory contains a comprehensive suite of automated integration tests that interact with a live test database.
+* **Test Isolation:** Each test generates unique dummy data (e.g., `TEST-UUID`) and rigorously tears it down post-execution, respecting strict Foreign Key constraints.
+* **Reflection for Edge Cases:** Strategically utilized Java Reflection API to manipulate private fields and force edge-case scenarios (like simulating concurrent balance modifications) without breaking production encapsulation.
 
-- Java 17
-- Maven
-- JUnit 5
-- IntelliJ IDEA
+## 🚀 Quick Start
 
-## Project Structure
+### 1. Database Setup
+Execute the following schema in your local MySQL instance:
+```sql
+CREATE DATABASE bank_system;
+USE bank_system;
 
-```text
-src
-├── main
-│   └── java
-│       └── bank
-│           ├── Main.java
-│           ├── core
-│           │   ├── Account.java
-│           │   ├── Bank.java
-│           │   └── Transaction.java
-│           ├── ledger
-│           │   └── TransactionLog.java
-│           ├── policy
-│           │   └── TransactionPolicy.java
-│           └── state
-│               └── AccountState.java
-└── test
-    └── java
-        └── bank
-            └── core
-                └── BankTest.java
+CREATE TABLE accounts (
+    id VARCHAR(36) PRIMARY KEY,
+    owner_name VARCHAR(100) NOT NULL,
+    balance BIGINT NOT NULL,
+    state VARCHAR(20) NOT NULL,
+    version INT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE transactions (
+    id VARCHAR(36) PRIMARY KEY,
+    type VARCHAR(20) NOT NULL,
+    amount BIGINT NOT NULL,
+    timestamp DATETIME NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    rejection_reason VARCHAR(50),
+    from_account_id VARCHAR(36),
+    to_account_id VARCHAR(36),
+    FOREIGN KEY (from_account_id) REFERENCES accounts(id),
+    FOREIGN KEY (to_account_id) REFERENCES accounts(id)
+);

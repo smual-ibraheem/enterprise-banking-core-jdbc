@@ -5,11 +5,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.bank</groupId>
-    <artifactId>bank-account-system</artifactId>
+    <artifactId>enterprise-banking-core-jdbc</artifactId>
     <version>1.0.0</version>
 
-    <name>Bank Account System</name>
-    <description>A console-based banking system built with clean Java architecture.</description>
+    <name>Enterprise Banking Core (JDBC)</name>
+    <description>A robust backend banking core implementing ACID transactions, Optimistic Locking, and Raw JDBC.</description>
 
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
@@ -18,12 +18,17 @@
     </properties>
 
     <dependencies>
-        <!-- Unit testing with JUnit 5 -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>${junit.version}</version>
             <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <version>8.3.0</version>
         </dependency>
     </dependencies>
 
@@ -39,14 +44,21 @@
                 </configuration>
             </plugin>
 
-            <!-- Run tests with JUnit 5 -->
+            <!-- Run tests with JUnit 5 & Inject Environment Variables -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
+                <configuration>
+                    <environmentVariables>
+                        <DB_URL>jdbc:mysql://localhost:3306/bank_system</DB_URL>
+                        <DB_USER>root</DB_USER>
+                        <!-- ضع كلمة سر الداتابيز الخاصة بجهازك هنا -->
+                        <DB_PASSWORD>!Backend_SQL_2026</DB_PASSWORD>
+                    </environmentVariables>
+                </configuration>
             </plugin>
 
-            
             <!-- Run the console app with: mvn exec:java -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
