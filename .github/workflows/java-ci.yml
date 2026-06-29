@@ -24,19 +24,25 @@ jobs:
           java-version: '17'
           cache: 'maven'
 
-      # الضربة القاضية 1: إجبار Linux MySQL على التسامح مع أحرف الجداول مثل Windows
-      - name: Configure Native MySQL (Windows Compatibility)
+      # الضربة القاضية: تشغيل حاوية دوكر بصلاحيات كاملة مع حقن أمر التسامح مع الأحرف
+      - name: Launch Enterprise MySQL Container
         run: |
-          sudo systemctl stop mysql
-          echo -e "[mysqld]\nlower_case_table_names=1" | sudo tee -a /etc/mysql/mysql.conf.d/mysqld.cnf
-          sudo systemctl start mysql
+          docker run --name mysql-enterprise -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=bank_system -p 3306:3306 -d mysql:8.0 --lower_case_table_names=1
+          
+          echo "Waiting for Database to initialize..."
+          for i in {1..30}; do
+            if docker exec mysql-enterprise mysqladmin ping -h localhost -uroot -proot --silent; then
+              echo "Database is ready!"
+              break
+            fi
+            echo "Still waiting..."
+            sleep 2
+          done
 
-      # الضربة القاضية 2: بناء الجداول المطابقة لملف الـ README الخاص بك
+      # بناء الجداول داخل الحاوية الجديدة
       - name: Initialize Database Schema
         run: |
-          mysql -u root -proot -e "
-          CREATE DATABASE IF NOT EXISTS bank_system;
-          USE bank_system;
+          docker exec mysql-enterprise mysql -uroot -proot bank_system -e "
           CREATE TABLE accounts (
               id VARCHAR(36) PRIMARY KEY,
               owner_name VARCHAR(100) NOT NULL,
@@ -57,13 +63,12 @@ jobs:
               FOREIGN KEY (to_account_id) REFERENCES accounts(id)
           );"
 
-      # الضربة القاضية 3: توليد ملف .env ديناميكي لإرضاء كود الجافا
+      # توليد ملف المتغيرات
       - name: Generate Local .env File
         run: |
           echo "DB_URL=jdbc:mysql://127.0.0.1:3306/bank_system?allowPublicKeyRetrieval=true&useSSL=false" > .env
           echo "DB_USER=root" >> .env
           echo "DB_PASSWORD=root" >> .env
 
-      # تشغيل الاختبارات مع إظهار تفاصيل الخطأ كاملة (e-) في حال فشل أي شيء
       - name: Run Integration Tests
         run: mvn clean test -e
