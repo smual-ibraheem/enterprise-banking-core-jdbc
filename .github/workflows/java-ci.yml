@@ -1,4 +1,4 @@
-name: Java CI
+name: Enterprise CI Pipeline
 
 on:
   push:
@@ -10,19 +10,39 @@ on:
 
 jobs:
   build-and-test:
-    name: Build and Test
+    name: Build, Test, and Verify (JDBC)
     runs-on: ubuntu-latest
 
+    # 1. إعداد حاوية الداتابيز الوهمية (The Magic Fix)
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: bank_system
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
     steps:
-      - name: Checkout repository
+      - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Set up Java
+      - name: Set up Java 17 (Temurin)
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
+          distribution: 'temurin'
           java-version: '17'
-          cache: maven
+          cache: 'maven'
 
-      - name: Build and run tests
+      # 2. بناء المشروع وتشغيل الاختبارات مع حقن المتغيرات
+      - name: Run Integration Tests
+        env:
+          DB_URL: jdbc:mysql://127.0.0.1:3306/bank_system
+          DB_USER: root
+          DB_PASSWORD: root
         run: mvn clean test
