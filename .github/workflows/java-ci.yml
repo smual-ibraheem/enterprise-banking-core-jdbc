@@ -24,25 +24,11 @@ jobs:
           java-version: '17'
           cache: 'maven'
 
-      # الضربة القاضية: تشغيل حاوية دوكر بصلاحيات كاملة مع حقن أمر التسامح مع الأحرف
-      - name: Launch Enterprise MySQL Container
+      # 1. التكتيك الاحترافي: صناعة ملف الجداول وتجهيزه ليتم حقنه في الحاوية
+      - name: Prepare Database Schema File
         run: |
-          docker run --name mysql-enterprise -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=bank_system -p 3306:3306 -d mysql:8.0 --lower_case_table_names=1
-          
-          echo "Waiting for Database to initialize..."
-          for i in {1..30}; do
-            if docker exec mysql-enterprise mysqladmin ping -h localhost -uroot -proot --silent; then
-              echo "Database is ready!"
-              break
-            fi
-            echo "Still waiting..."
-            sleep 2
-          done
-
-      # بناء الجداول داخل الحاوية الجديدة
-      - name: Initialize Database Schema
-        run: |
-          docker exec mysql-enterprise mysql -uroot -proot bank_system -e "
+          cat << 'EOF' > init.sql
+          USE bank_system;
           CREATE TABLE accounts (
               id VARCHAR(36) PRIMARY KEY,
               owner_name VARCHAR(100) NOT NULL,
@@ -61,9 +47,31 @@ jobs:
               to_account_id VARCHAR(36),
               FOREIGN KEY (from_account_id) REFERENCES accounts(id),
               FOREIGN KEY (to_account_id) REFERENCES accounts(id)
-          );"
+          );
+          EOF
 
-      # توليد ملف المتغيرات
+      # 2. تشغيل الحاوية وإعطاؤها الملف لتبنيه داخلياً بأمان تام مع توافق أحرف الويندوز
+      - name: Launch Enterprise MySQL (Native Init)
+        run: |
+          docker run --name mysql-enterprise \
+            -e MYSQL_ROOT_PASSWORD=root \
+            -e MYSQL_DATABASE=bank_system \
+            -p 3306:3306 \
+            -v ${{ github.workspace }}/init.sql:/docker-entrypoint-initdb.d/1-init.sql \
+            -d mysql:8.0 \
+            --lower_case_table_names=1
+
+          echo "Waiting for Database to strictly initialize..."
+          for i in {1..30}; do
+            if docker exec mysql-enterprise mysqladmin ping -h 127.0.0.1 -u root -proot --silent; then
+              echo "Database is fully awake and ready!"
+              sleep 5
+              break
+            fi
+            sleep 3
+          done
+
+      # 3. توليد المتغيرات
       - name: Generate Local .env File
         run: |
           echo "DB_URL=jdbc:mysql://127.0.0.1:3306/bank_system?allowPublicKeyRetrieval=true&useSSL=false" > .env
