@@ -19,7 +19,6 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: bank_system
-          # الحل الجذري 1: إجبار الداتابيز على قبول الاتصال من داخل شبكة GitHub الوهمية
           MYSQL_ROOT_HOST: "%"
         ports:
           - 3306:3306
@@ -65,15 +64,12 @@ jobs:
               FOREIGN KEY (to_account_id) REFERENCES accounts(id)
           );"
 
+      # الحل الجذري: توليد ملف .env ديناميكي داخل السيرفر
+      - name: Generate Dynamic .env File
+        run: |
+          echo "DB_URL=jdbc:mysql://127.0.0.1:3306/bank_system?allowPublicKeyRetrieval=true&useSSL=false" > .env
+          echo "DB_USER=root" >> .env
+          echo "DB_PASSWORD=root" >> .env
+
       - name: Run Integration Tests
-        env:
-          # الحل الجذري 2: تغطية كافة أسماء المتغيرات المحتملة في كود الجافا الخاص بك
-          DB_URL: jdbc:mysql://127.0.0.1:3306/bank_system?allowPublicKeyRetrieval=true&useSSL=false
-          DATABASE_URL: jdbc:mysql://127.0.0.1:3306/bank_system?allowPublicKeyRetrieval=true&useSSL=false
-          DB_USER: root
-          DB_USERNAME: root
-          DATABASE_USER: root
-          DB_PASSWORD: root
-          DB_PASS: root
-          DATABASE_PASSWORD: root
         run: mvn clean test
