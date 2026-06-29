@@ -13,8 +13,6 @@ jobs:
     name: Build, Test, and Verify (JDBC)
     runs-on: ubuntu-latest
 
-    # تم مسح قسم الـ services بالكامل للتخلص من فخ شبكات Docker
-
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
@@ -26,10 +24,16 @@ jobs:
           java-version: '17'
           cache: 'maven'
 
-      # تشغيل محرك MySQL الأصلي المدمج في السيرفر وبناء الداتابيز
-      - name: Start Native MySQL & Initialize Database
+      # الضربة القاضية 1: إجبار Linux MySQL على التسامح مع أحرف الجداول مثل Windows
+      - name: Configure Native MySQL (Windows Compatibility)
         run: |
-          sudo systemctl start mysql.service
+          sudo systemctl stop mysql
+          echo -e "[mysqld]\nlower_case_table_names=1" | sudo tee -a /etc/mysql/mysql.conf.d/mysqld.cnf
+          sudo systemctl start mysql
+
+      # الضربة القاضية 2: بناء الجداول المطابقة لملف الـ README الخاص بك
+      - name: Initialize Database Schema
+        run: |
           mysql -u root -proot -e "
           CREATE DATABASE IF NOT EXISTS bank_system;
           USE bank_system;
@@ -53,15 +57,13 @@ jobs:
               FOREIGN KEY (to_account_id) REFERENCES accounts(id)
           );"
 
-      # حقن جميع المتغيرات المحتملة مباشرة في بيئة النظام
+      # الضربة القاضية 3: توليد ملف .env ديناميكي لإرضاء كود الجافا
+      - name: Generate Local .env File
+        run: |
+          echo "DB_URL=jdbc:mysql://127.0.0.1:3306/bank_system?allowPublicKeyRetrieval=true&useSSL=false" > .env
+          echo "DB_USER=root" >> .env
+          echo "DB_PASSWORD=root" >> .env
+
+      # تشغيل الاختبارات مع إظهار تفاصيل الخطأ كاملة (e-) في حال فشل أي شيء
       - name: Run Integration Tests
-        env:
-          DB_URL: jdbc:mysql://127.0.0.1:3306/bank_system?allowPublicKeyRetrieval=true&useSSL=false
-          DATABASE_URL: jdbc:mysql://127.0.0.1:3306/bank_system?allowPublicKeyRetrieval=true&useSSL=false
-          DB_USER: root
-          DB_USERNAME: root
-          DATABASE_USER: root
-          DB_PASSWORD: root
-          DB_PASS: root
-          DATABASE_PASSWORD: root
-        run: mvn clean test
+        run: mvn clean test -e
