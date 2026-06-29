@@ -13,20 +13,7 @@ jobs:
     name: Build, Test, and Verify (JDBC)
     runs-on: ubuntu-latest
 
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: bank_system
-          MYSQL_ROOT_HOST: "%"
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h localhost"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
+    # تم مسح قسم الـ services بالكامل للتخلص من فخ شبكات Docker
 
     steps:
       - name: Checkout Source Code
@@ -39,11 +26,13 @@ jobs:
           java-version: '17'
           cache: 'maven'
 
-      - name: Initialize Database Schema
-        env:
-          MYSQL_PWD: root
+      # تشغيل محرك MySQL الأصلي المدمج في السيرفر وبناء الداتابيز
+      - name: Start Native MySQL & Initialize Database
         run: |
-          mysql -h 127.0.0.1 -P 3306 -u root bank_system -e "
+          sudo systemctl start mysql.service
+          mysql -u root -proot -e "
+          CREATE DATABASE IF NOT EXISTS bank_system;
+          USE bank_system;
           CREATE TABLE accounts (
               id VARCHAR(36) PRIMARY KEY,
               owner_name VARCHAR(100) NOT NULL,
@@ -64,12 +53,15 @@ jobs:
               FOREIGN KEY (to_account_id) REFERENCES accounts(id)
           );"
 
-      # الحل الجذري: توليد ملف .env ديناميكي داخل السيرفر
-      - name: Generate Dynamic .env File
-        run: |
-          echo "DB_URL=jdbc:mysql://127.0.0.1:3306/bank_system?allowPublicKeyRetrieval=true&useSSL=false" > .env
-          echo "DB_USER=root" >> .env
-          echo "DB_PASSWORD=root" >> .env
-
+      # حقن جميع المتغيرات المحتملة مباشرة في بيئة النظام
       - name: Run Integration Tests
+        env:
+          DB_URL: jdbc:mysql://127.0.0.1:3306/bank_system?allowPublicKeyRetrieval=true&useSSL=false
+          DATABASE_URL: jdbc:mysql://127.0.0.1:3306/bank_system?allowPublicKeyRetrieval=true&useSSL=false
+          DB_USER: root
+          DB_USERNAME: root
+          DATABASE_USER: root
+          DB_PASSWORD: root
+          DB_PASS: root
+          DATABASE_PASSWORD: root
         run: mvn clean test
