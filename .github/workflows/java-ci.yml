@@ -13,7 +13,6 @@ jobs:
     name: Build, Test, and Verify (JDBC)
     runs-on: ubuntu-latest
 
-    # 1. إعداد حاوية الداتابيز الوهمية (The Magic Fix)
     services:
       mysql:
         image: mysql:8.0
@@ -39,10 +38,36 @@ jobs:
           java-version: '17'
           cache: 'maven'
 
-      # 2. بناء المشروع وتشغيل الاختبارات مع حقن المتغيرات
+      # الخطوة السحرية: بناء الجداول قبل تشغيل الجافا
+      - name: Initialize Database Schema
+        env:
+          MYSQL_PWD: root
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -u root bank_system -e "
+          CREATE TABLE accounts (
+              id VARCHAR(36) PRIMARY KEY,
+              owner_name VARCHAR(100) NOT NULL,
+              balance BIGINT NOT NULL,
+              state VARCHAR(20) NOT NULL,
+              version INT NOT NULL DEFAULT 0
+          );
+          CREATE TABLE transactions (
+              id VARCHAR(36) PRIMARY KEY,
+              type VARCHAR(20) NOT NULL,
+              amount BIGINT NOT NULL,
+              timestamp DATETIME NOT NULL,
+              status VARCHAR(20) NOT NULL,
+              rejection_reason VARCHAR(50),
+              from_account_id VARCHAR(36),
+              to_account_id VARCHAR(36),
+              FOREIGN KEY (from_account_id) REFERENCES accounts(id),
+              FOREIGN KEY (to_account_id) REFERENCES accounts(id)
+          );"
+
+      # تم إضافة خصائص الحماية في الرابط لتفادي رفض الاتصال
       - name: Run Integration Tests
         env:
-          DB_URL: jdbc:mysql://127.0.0.1:3306/bank_system
+          DB_URL: jdbc:mysql://127.0.0.1:3306/bank_system?allowPublicKeyRetrieval=true&useSSL=false
           DB_USER: root
           DB_PASSWORD: root
         run: mvn clean test
