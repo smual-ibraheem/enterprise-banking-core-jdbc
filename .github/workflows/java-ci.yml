@@ -19,6 +19,8 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: bank_system
+          # الحل الجذري 1: إجبار الداتابيز على قبول الاتصال من داخل شبكة GitHub الوهمية
+          MYSQL_ROOT_HOST: "%"
         ports:
           - 3306:3306
         options: >-
@@ -38,7 +40,6 @@ jobs:
           java-version: '17'
           cache: 'maven'
 
-      # الخطوة السحرية: بناء الجداول قبل تشغيل الجافا
       - name: Initialize Database Schema
         env:
           MYSQL_PWD: root
@@ -64,10 +65,15 @@ jobs:
               FOREIGN KEY (to_account_id) REFERENCES accounts(id)
           );"
 
-      # تم إضافة خصائص الحماية في الرابط لتفادي رفض الاتصال
       - name: Run Integration Tests
         env:
+          # الحل الجذري 2: تغطية كافة أسماء المتغيرات المحتملة في كود الجافا الخاص بك
           DB_URL: jdbc:mysql://127.0.0.1:3306/bank_system?allowPublicKeyRetrieval=true&useSSL=false
+          DATABASE_URL: jdbc:mysql://127.0.0.1:3306/bank_system?allowPublicKeyRetrieval=true&useSSL=false
           DB_USER: root
+          DB_USERNAME: root
+          DATABASE_USER: root
           DB_PASSWORD: root
+          DB_PASS: root
+          DATABASE_PASSWORD: root
         run: mvn clean test
